@@ -10,7 +10,7 @@ import (
 func main() {
 	// Вставь сюда свой токен
 	token := "7693043162:AAEx9wClbrIjP9fZeVteieAeENJp58X9wyg"
-
+	
 	// Настройки бота
 	pref := telebot.Settings{
 		Token:  token,
@@ -56,7 +56,37 @@ func main() {
 	})
 	
 	// Обработка всех сообщений
+	
+
 	bot.Handle(telebot.OnText, func(c telebot.Context) error {
+		user := c.Sender()
+	
+		// Проверяем, замучен ли пользователь
+		if muteTime, ok := mutedUsers[user.ID]; ok {
+			if time.Now().After(muteTime) {
+				delete(mutedUsers, user.ID) // Убираем из списка, если мут истек
+				return nil
+			}
+	
+			// Если сообщение — это команда (начинается с "/"), удаляем его
+			if c.Message().Text[0] == '/' {
+				err := c.Delete()
+				if err != nil {
+					return c.Send("Не удалось удалить команду: " + err.Error())
+				}
+			}
+
+			err := c.Delete()
+			if err != nil {
+				return c.Send("Не удалось удалить сообщение: " + err.Error())
+			}
+		}
+	
+		return nil
+	})
+	
+
+	bot.Handle(telebot.OnSticker, func(c telebot.Context) error {
 		user := c.Sender()
 	
 		// Проверяем, замучен ли пользователь
@@ -67,16 +97,39 @@ func main() {
 				return nil
 			}
 	
-			// Удаляем сообщение пользователя
+			// Удаляем стикер
 			err := c.Delete()
 			if err != nil {
-				return c.Send("Не удалось удалить сообщение: " + err.Error())
+				return c.Send("Не удалось удалить стикер: " + err.Error())
 			}
 		}
 	
 		return nil
 	})
 
+	// Обработка голосовых сообщений
+	bot.Handle(telebot.OnVoice, func(c telebot.Context) error {
+		user := c.Sender()
+	
+		// Проверяем, замучен ли пользователь
+		if muteTime, ok := mutedUsers[user.ID]; ok {
+			// Если время мута истекло, удаляем пользователя из списка
+			if time.Now().After(muteTime) {
+				delete(mutedUsers, user.ID)
+				return nil
+			}
+	
+			// Удаляем голосовое сообщение
+			err := c.Delete()
+			if err != nil {
+				return c.Send("Не удалось удалить голосовое сообщение: " + err.Error())
+			}
+		}
+	
+		return nil
+	})
+
+	// Обработка команд
 
 	// Запускаем бота
 	bot.Start()
