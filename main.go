@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/telebot.v3"
@@ -80,6 +83,25 @@ func main() {
 		// Время окончания мута (через 1 час)
 		mutedUsers[user.ID] = time.Now().Add(1 * time.Hour)
 
+		photoPath, photoName, err := getRandomPhoto("hogs")
+		if err != nil {
+			return c.Send("Не удалось загрузить фото: " + err.Error())
+		}
+
+		// Отправляем фото
+		photo := &telebot.Photo{File: telebot.FromDisk(photoPath)}
+		err = c.Send(photo)
+		if err != nil {
+			return c.Send("Не удалось отправить фото: " + err.Error())
+		}
+
+		// Проверяем название фото
+		if photoName == "19" {
+			return c.Send("Вы - лузер! 😭")
+		} else if photoName == "20" {
+			return c.Send("Джекпот! 🎉")
+		}
+
 		// Отправляем сообщение о муте
 		return c.Send(user.FirstName + " теперь в муте на 1 час! 🚫")
 	})
@@ -154,7 +176,6 @@ func main() {
 
 		return nil
 	})
-
 	bot.Handle(telebot.OnMedia, func(c telebot.Context) error {
 		user := c.Sender()
 
@@ -199,4 +220,36 @@ func main() {
 
 	// Запускаем бота
 	bot.Start()
+}
+
+
+func getRandomPhoto(dir string) (string, string, error) {
+	// Чтение всех файлов из папки
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Фильтруем только файлы
+	var photoFiles []os.DirEntry
+	for _, file := range files {
+		if !file.IsDir() {
+			photoFiles = append(photoFiles, file)
+		}
+	}
+
+	if len(photoFiles) == 0 {
+		return "", "", fmt.Errorf("в папке %s нет фотографий", dir)
+	}
+
+	// Выбираем случайное фото
+	rand.Seed(time.Now().UnixNano())
+	randomFile := photoFiles[rand.Intn(len(photoFiles))]
+
+	// Получаем путь и имя файла
+	photoPath := filepath.Join(dir, randomFile.Name())
+	photoName := filepath.Base(randomFile.Name())
+	photoName = photoName[:len(photoName)-len(filepath.Ext(photoName))] // Убираем расширение
+
+	return photoPath, photoName, nil
 }
